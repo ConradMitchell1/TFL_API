@@ -46,6 +46,11 @@ namespace TFL_API
             app.UseStaticFiles();
 
             app.UseRouting();
+            using(var scope = app.Services.CreateScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                db.Database.Migrate();
+            }
 
             app.UseAuthorization();
 
