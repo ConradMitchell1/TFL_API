@@ -1,0 +1,125 @@
+﻿@{
+    ViewData["Title"] = "Home Page";
+}
+<div>
+    <label>Search Station: </label>
+    <input type="text" id="stationSearch" value="London Bridge" />
+    <ul id="stationResults"
+    ></ul>
+    <label id="resultId">Result</label>
+    <button onclick="searchStation()">Search</button>
+</div>
+<div>
+    <label>Test: </label>
+    <button onclick="testStation()">TestButton</button>
+    <pre id="testOutput"/>
+</div>
+<div>
+    <label>Naptan:</label>
+    <input type="text" id="naptanId" value="940GZZLUBNK" />
+
+    <label>Day:</label>
+    <select id="daySelect">
+        <option value="Mon">Monday</option>
+        <option value="Tue">Tuesday</option>
+        <option value="Wed">Wednesday</option>
+        <option value="Thur">Thursday</option>
+        <option value="Fri">Friday</option>
+        <option value="Sat">Saturday</option>
+        <option value="Sun">Sunday</option></select>
+
+    <button onclick="loadCrowdingByDay()">Load Crowding By Day</button>
+    <button onclick="loadCrowdingLive()">Load Live Crowding</button>
+    <button onclick="loadCrowdingNaptan()">Load Crowding By Naptan</button>
+</div>
+<pre id="output"></pre>
+
+<script>
+    async function testStation(){
+        const response = await fetch(`/api/train/crowding/tube-stations`);
+        if(!response.ok){
+            console.error("Failed to test station");
+            return;
+        }
+        const data = await response.json();
+        document.getElementById("testOutput").textContent = JSON.stringify(data, null, 2);
+        console.log("Test station data:", data);
+    }
+    async function searchStation(){
+        const station = document.getElementById("stationSearch").value;
+        const resultsEL = document.getElementById("stationResults");
+
+        if(!station){
+            alert("Please enter a station name to search");
+            return;
+        }
+        const response = await fetch(`/api/train/crowding/search?query=${encodeURIComponent(station)}`);
+        if(!response.ok){
+            console.error("Failed to search station");
+            return;
+        }
+        const stations = await response.json();
+
+        resultsEL.innerHTML = "";
+
+        stations.forEach(s => {
+            const li = document.createElement("li");
+            li.textContent = s.name;
+
+            li.onclick = () => selectStation(s);
+            resultsEL.appendChild(li);
+        });
+        
+    }
+    let selectedStationId = null;
+    function selectStation(station) {
+        
+        selectedStationId = station.id;
+        document.getElementById("stationSearch").value = station.name;
+        document.getElementById("resultId").innerHTML = `Selected Station ID: ${station.id}`;
+
+        console.log("Selected station:", station);
+    }
+
+    async function loadCrowdingByDay(){
+        const naptan = document.getElementById("naptanId").value;
+        const day = document.getElementById("daySelect").value;
+        const response = await fetch(`/api/train/crowding/naptan/${encodeURIComponent(naptan)}/day/${encodeURIComponent(day)}`);
+
+        if(!response.ok){
+            console.error("Failed to load crowding data");
+            return;
+        }
+        const data = await response.json();
+
+        document.getElementById("output").textContent = JSON.stringify(data, null, 2);
+        console.log("Crowding data:", data);
+    }
+
+    async function loadCrowdingLive(){
+        const naptan = document.getElementById("naptanId").value;
+        const response = await fetch(`/api/train/crowding/live?naptan=${encodeURIComponent(naptan)}`);
+
+        if(!response.ok){
+            console.error("Failed to load live crowding data");
+            return;
+        }
+        const data = await response.json();
+        document.getElementById("output").textContent = JSON.stringify(data, null, 2);
+        console.log("Live crowding data:", data);
+    }
+
+    async function loadCrowdingNaptan(){
+        const naptan = document.getElementById("naptanId").value;
+        const response = await fetch(`/api/train/crowding/naptan/${encodeURIComponent(naptan)}`);
+
+        if(!response.ok){
+            console.error("Failed to load naptan crowding data");
+            return;
+        }
+        const data = await response.json();
+        document.getElementById("output").textContent = JSON.stringify(data, null, 2);
+        console.log("Naptan crowding data:", data);
+    }
+    
+</script>
