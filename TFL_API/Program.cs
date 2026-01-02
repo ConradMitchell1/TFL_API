@@ -32,8 +32,6 @@ namespace TFL_API
 
             var app = builder.Build();
 
-            await DatabaseSeeder.SeedStationsAsync(app.Services);
-
             // Configure the HTTP request pipeline.
             if (!app.Environment.IsDevelopment())
             {
@@ -49,7 +47,10 @@ namespace TFL_API
             using(var scope = app.Services.CreateScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
                 db.Database.Migrate();
+
+                await DatabaseSeeder.SeedStationsAsync(scope.ServiceProvider);
             }
 
             app.UseAuthorization();
