@@ -37,7 +37,59 @@ namespace TFL_API.Services
 
         }
 
+        public bool IsWithinWindow(string timeBand, TimeSpan start, TimeSpan end)
+        {
+            var parts = timeBand.Split('-');
+            if (parts.Length != 2)
+            {
+                return false;
+            }
+            var bandStart = TimeSpan.Parse(parts[0]);
+            return bandStart >= start && bandStart < end;
+        }
 
+        public List<DayPeakDTO> ToWeekPeakSummary(CrowdingNaptanResponse resp)
+        {
+            List<DayPeakDTO> weekPeaks = new List<DayPeakDTO>();
+            foreach (var day in resp.DaysOfWeek)
+            {
 
+                var best = day.TimeBands
+                    .OrderByDescending(tb => tb.PercentageOfBaseLine)
+                    .FirstOrDefault();
+                decimal peakPct = best?.PercentageOfBaseLine != null ? best.PercentageOfBaseLine * 100m : 0;
+
+                weekPeaks.Add(new DayPeakDTO
+                (
+                    day.DayOfWeek,
+                    peakPct,
+                    best?.TimeBand ?? "N/A"
+
+                ));
+
+            }
+            return weekPeaks;
+        }
+
+        public List<DayPeakDTO> ToWeekQuietSummary(CrowdingNaptanResponse resp, TimeSpan start, TimeSpan end)
+        {
+            List<DayPeakDTO> weekQuiets = new List<DayPeakDTO>();
+            foreach (var day in resp.DaysOfWeek)
+            {
+                var quietest = day.TimeBands
+                    .Where(tb => IsWithinWindow(tb.TimeBand, start, end))
+                    .OrderBy(tb => tb.PercentageOfBaseLine)
+                    .FirstOrDefault();
+                decimal quietPct = quietest?.PercentageOfBaseLine != null ? quietest.PercentageOfBaseLine * 100m : 0;
+                weekQuiets.Add(new DayPeakDTO
+                (
+                    day.DayOfWeek,
+                    quietPct,
+                    quietest?.TimeBand ?? "N/A"
+                ));
+
+            }
+            return weekQuiets;
+        }
     }       
 }

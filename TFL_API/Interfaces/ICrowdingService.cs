@@ -8,6 +8,9 @@ namespace TFL_API.Interfaces
         public Task<CrowdingByDayResponse?> GetCrowdingByDayAsync(string naptan, string day);
         public Task<CrowdingLiveResponse?> GetCrowdingLiveAsync(string naptan);
         public Task<CrowdingNaptanResponse?> GetCrowdingNaptanAsync(string naptan);
+        public List<DayPeakDTO> ToWeekPeakSummary(CrowdingNaptanResponse resp);
+        public List<DayPeakDTO> ToWeekQuietSummary(CrowdingNaptanResponse resp, TimeSpan start, TimeSpan end);
+        public bool IsWithinWindow(string timeBand, TimeSpan start, TimeSpan end);
 
 
 

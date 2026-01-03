@@ -61,7 +61,7 @@ body {
     position: absolute;
     top: 16px;
     right: 16px;
-    width: 340px;
+    width: 440px;
     background: #fff;
     padding: 12px 14px;
     border-radius: 10px;
@@ -78,4 +78,9 @@ body {
     border: 1px solid #ddd;
     outline: none;
     transition: border-color 0.15s, box-shadow 0.15s ease;
+}
+.leaflet-container .leaflet-interactive:focus,
+.leaflet-container .leaflet-interactive:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
 }
