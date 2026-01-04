@@ -6,6 +6,7 @@ const state = {
     markersByNaptan: new Map(),
     peakChart: null,
     quietChart: null,
+    activeNaptan: null,
     bounds: L.latLngBounds([51.20, -0.65], [51.80, 0.45])
 };
 
@@ -85,6 +86,7 @@ async function loadStations() {
 /* ------------------- Station Interaction ------------------ */
 
 async function onStationClick(station) {
+    state.activeNaptan = station.naptan;
     state.map.setView([station.lat, station.lon], 14, { animate: true });
     const live = await fetch(`/api/train/crowding/live?naptan=${encodeURIComponent(station.naptan)}`).then(res => res.json());
     const pct = live?.percentageOfBaseline ?? null;
@@ -104,19 +106,31 @@ async function onStationClick(station) {
 /* ------------------- Card Logic ------------------ */
 
 function showCard({ name, pct, timeLocal, naptan }) {
-    state.cardEl.style.display = "block";
     state.cardEl.innerHTML = renderCrowdingCard({ name, pct, timeLocal });
 
+    state.cardEl.classList.add("open");
+
     document.getElementById("closeCardBtn")?.addEventListener("click", hideCard);
+
+    const timeStart = document.getElementById("timeStart");
+    const timeEnd = document.getElementById("timeEnd");
+
+    if (!timeStart || !timeEnd) return;
+    timeStart.addEventListener("change", onTimeChange);
+    timeEnd.addEventListener("change", onTimeChange);
 
     renderPeakChart(naptan);
     renderQuietChart(naptan);
 
 }
 
-function hideCard(){
-    state.cardEl.style.display = "none";
-    state.cardEl.innerHTML = "";
+function hideCard() {
+    state.cardEl.classList.remove("open");
+    setTimeout(() => {
+        if (!state.cardEl.classList.contains("open")) {
+            state.cardEl.innerHTML = "";
+        }
+    }, 250);
 }
 
 /* ------------------- Rendering Helpers ------------------ */
@@ -175,11 +189,26 @@ function renderCrowdingCard({ name, pct, timeLocal }) {
         
       </div>
       <canvas id="weeklyPeakChart" height="160"></canvas>
+      <label for="timeStart">Select a start time (06:00–00:00)</label>
+      <input id="timeStart" type="time" min="06:00" max="23:59"value="08:00">
+
+      <label for="timeEnd">Select a end time (06:00–00:00)</label>
+      <input id="timeEnd" type="time" min="06:00" max="23:59" value="20:00">
       <canvas id="weeklyQuietChart" height="160"></canvas>
     `;
 }
 
 /* ------------------- Charts ------------------ */
+
+
+
+async function onTimeChange() {
+    if (!state.activeNaptan) return;
+    const start = document.getElementById("timeStart").value;
+    const end = document.getElementById("timeEnd").value;
+    if (end < start) return;
+    await renderQuietChart(state.activeNaptan, start, end);
+}
 
 async function renderPeakChart(naptan) {
     const data = await fetch(`/api/train/crowding/peak/${encodeURIComponent(naptan)}`).then(res => res.json());
@@ -222,8 +251,9 @@ async function renderPeakChart(naptan) {
     });
 
 }
-async function renderQuietChart(naptan) {
-    const data = await fetch(`/api/train/crowding/quiet/${encodeURIComponent(naptan)}`).then(res => res.json());
+async function renderQuietChart(naptan, start = "08:00", end = "20:00") {
+    const url = `/api/train/crowding/quiet/${encodeURIComponent(naptan)}?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`;
+    const data = await fetch(url).then(r => r.json());
 
     const labels = data.map(d => d.day);
     const values = data.map(d => d.peakPercentage ?? 0);

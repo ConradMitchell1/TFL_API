@@ -52,6 +52,15 @@ namespace TFL_API.Controllers
         {
             return Json(await _crowdingService.GetCrowdingLiveAsync(naptan));
         }
+        [HttpGet("live/all")]
+        public async Task<IActionResult> GetAllLiveCrowding()
+        {
+            var stations = await _stationService.GetAllStationsAsync();
+            var naptans = stations.Select(s => s.Naptan).ToList();
+
+            var live = await _crowdingService.GetLiveCrowdingForStationsAsync(naptans);
+            return Ok(live);
+        }
 
         [HttpGet("tube-stations")]
         public async Task<IActionResult> GetTubeStations()

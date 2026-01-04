@@ -37,6 +37,45 @@ namespace TFL_API.Services
 
         }
 
+        public async Task<List<CrowdingLiveResponse>> GetLiveCrowdingForStationsAsync(IEnumerable<string> naptans, int maxConcurrency = 8)
+        {
+            var sem = new SemaphoreSlim(maxConcurrency);
+            var results = new List<CrowdingLiveResponse>();
+            async Task FetchOneAsync(string naptan)
+            {
+                await sem.WaitAsync();
+                try
+                {
+                    var url = $"https://api.tfl.gov.uk/crowding/{Uri.EscapeDataString(naptan)}/live";
+                    var resp = await _http.GetAsync(url);
+
+                    if (!resp.IsSuccessStatusCode)
+                        return;
+                    var live = await resp.Content.ReadFromJsonAsync<CrowdingLiveResponse>();
+                    if (live is null)
+                        return;
+                    results.Add(live);
+
+                }
+                catch (Exception ex) 
+                {
+                    
+                }
+                finally
+                {
+                    sem.Release();
+                }
+            }
+
+            var tasks = naptans.Where(n => !string.IsNullOrWhiteSpace(n))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Select(FetchOneAsync)
+                .ToList();
+
+            await Task.WhenAll(tasks);
+            return results.ToList();
+        }
+
         public bool IsWithinWindow(string timeBand, TimeSpan start, TimeSpan end)
         {
             var parts = timeBand.Split('-');
