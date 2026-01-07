@@ -11,9 +11,24 @@ namespace TFL_API.Services
         {
             _http = http;
         }
-        public async Task<ItineraryResult> GetItinerary(string from, string to)
+        public async Task<ItineraryResult> GetItinerary(string from, string to, string? date, string? time, string? timeIs)
         {
-            var url = $"https://api.tfl.gov.uk/Journey/JourneyResults/{from}/to/{to}";
+            var baseUrl = $"https://api.tfl.gov.uk/Journey/JourneyResults/{from}/to/{to}";
+            var query = new List<string>();
+            if (!string.IsNullOrWhiteSpace(date))
+            {
+                query.Add($"date={Uri.EscapeDataString(date)}");
+            }
+            if (!string.IsNullOrWhiteSpace(time))
+            {
+                query.Add($"time={Uri.EscapeDataString(time)}");
+            }
+            if (!string.IsNullOrWhiteSpace(timeIs))
+            {
+                query.Add($"timeIs={Uri.EscapeDataString(timeIs)}");
+            }
+
+            var url = query.Count > 0 ? $"{baseUrl}?{string.Join("&", query)}" : baseUrl;
             using var resp = await _http.GetAsync(url);
             var json = await resp.Content.ReadAsStringAsync();
             

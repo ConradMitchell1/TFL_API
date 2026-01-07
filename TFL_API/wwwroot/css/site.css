@@ -139,3 +139,23 @@ body.map-body {
     margin-top:15px;
     opacity: 0.85;
 }
+#fromInput,
+#toInput {
+    width: 220px;
+}
+
+#dateInput {
+    width: 150px;
+}
+
+#timeInput {
+    width: 110px;
+}
+
+#timeIs {
+    width: 140px;
+}
+
+#btnSearch {
+    width: 150px;
+}

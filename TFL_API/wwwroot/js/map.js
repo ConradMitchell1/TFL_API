@@ -508,8 +508,25 @@ async function searchJourneys() {
 
     const from = state.selectedFrom.naptan;
     const to = state.selectedTo.naptan;
+    const dateRaw = document.getElementById("dateInput")?.value;
+    const timeRaw = document.getElementById("timeInput")?.value;
 
-    const response = await fetch(`/api/train/crowding/journeys?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+    const date = dateRaw ? dateRaw.replaceAll("-", "") : null;
+    const time = timeRaw ? timeRaw.replaceAll(":", "") : null;
+    const timeIs = document.getElementById("timeIs")?.value;
+
+    const params = new URLSearchParams({
+        from,
+        to
+    });
+
+    if (date) params.set("date", date);
+    if (time) params.set("time", time);
+    if (timeIs) params.set("timeIs", timeIs);
+
+    const url = `/api/train/crowding/journeys?${params.toString()}`;
+
+    const response = await fetch(url);
     if (!response.ok) {
         console.error("Failed to test station");
         return;

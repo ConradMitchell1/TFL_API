@@ -79,9 +79,9 @@ namespace TFL_API.Controllers
             return Json(matchingStations);
         }
         [HttpGet("journeys")]
-        public async Task<IActionResult> SearchJourneys([FromQuery] string from, [FromQuery] string to)
+        public async Task<IActionResult> SearchJourneys([FromQuery] string from, [FromQuery] string to, [FromQuery] string? date = null, [FromQuery] string? time = null, [FromQuery] string? timeIs = null)
         {
-            var result = await _journeyService.GetItinerary(from,  to);
+            var result = await _journeyService.GetItinerary(from,  to, date, time, timeIs);
             Console.WriteLine(result?.Journeys?.Count ?? 0);
             return Json(result);
         }

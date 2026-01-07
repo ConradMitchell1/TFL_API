@@ -27,6 +27,21 @@
             <input class="searchInput" id="toInput" type="search" placeholder="To: ...." />
             <ul id="toResults" class="searchResults"></ul>
         </div>
+
+        <div class="searchWrap">
+            <input class="searchInput" id="dateInput" type="date" />
+        </div>
+
+        <div class="searchWrap">
+            <input class="searchInput" id="timeInput" type="time" />
+        </div>
+
+        <div class="searchWrap">
+            <select class="searchInput" id="timeIs">
+                <option value="Departing">Depart at</option>
+                <option value="Arriving">Arrive by</option>
+            </select>
+        </div>
        
         <div class="searchWrap">
             <button class="searchInput" id="btnSearch" onclick="searchJourneys()">Search Journeys</button>
