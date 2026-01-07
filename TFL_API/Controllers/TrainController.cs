@@ -10,10 +10,12 @@ namespace TFL_API.Controllers
     {
         private readonly ICrowdingService _crowdingService;
         private readonly IStationService _stationService;
-        public TrainController(ICrowdingService crowdingService, IStationService stationService)
+        private readonly IJourneyService _journeyService;
+        public TrainController(ICrowdingService crowdingService, IStationService stationService, IJourneyService journeyService)
         {
             _crowdingService = crowdingService;
             _stationService = stationService;
+            _journeyService = journeyService;
         }
 
         [HttpGet("naptan/{naptan}/day/{day}")]
@@ -75,6 +77,13 @@ namespace TFL_API.Controllers
                 .Where(s => s.Name.Contains(query, StringComparison.OrdinalIgnoreCase) || s.Naptan.Contains(query, StringComparison.OrdinalIgnoreCase))
                 .ToList();
             return Json(matchingStations);
+        }
+        [HttpGet("journeys")]
+        public async Task<IActionResult> SearchJourneys([FromQuery] string from, [FromQuery] string to)
+        {
+            var result = await _journeyService.GetItinerary(from,  to);
+            Console.WriteLine(result?.Journeys?.Count ?? 0);
+            return Json(result);
         }
     }
 }

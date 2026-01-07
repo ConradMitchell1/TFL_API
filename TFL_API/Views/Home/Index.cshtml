@@ -11,7 +11,7 @@
 </div>
 <div>
     <label>Test: </label>
-    <button onclick="testStation()">TestButton</button>
+    <button onclick="testJourneys()">Test Journeys</button>
     <pre id="testOutput"/>
 </div>
 <div>
@@ -37,6 +37,16 @@
 <script>
     async function testStation(){
         const response = await fetch(`/api/train/crowding/tube-stations`);
+        if(!response.ok){
+            console.error("Failed to test station");
+            return;
+        }
+        const data = await response.json();
+        document.getElementById("testOutput").textContent = JSON.stringify(data, null, 2);
+        console.log("Test station data:", data);
+    }
+    async function testJourneys(){
+        const response = await fetch(`/api/train/crowding/journeys`);
         if(!response.ok){
             console.error("Failed to test station");
             return;

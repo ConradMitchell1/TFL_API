@@ -9,10 +9,27 @@
 
     
     <div id="searchBar">
-        <h2 style="color:white">Map</h2>
         <div class="searchWrap">
-            <input id="searchInput" type="search" placeholder="Search for station..." />
-            <ul id="searchResults"></ul>
+            <input class="searchInput" id="fromInput" type="search" placeholder="From: ...." />
+            <ul id="fromResults" class="searchResults"></ul>
+        </div>
+        <div class="arrowWrap">
+            <svg width="36" height="36" viewBox="0 0 24 24" class="journeyArrow">
+                <path d="M4 12h14M12 6l6 6-6 6"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round" />
+            </svg>
+        </div>
+        <div class="searchWrap">
+            <input class="searchInput" id="toInput" type="search" placeholder="To: ...." />
+            <ul id="toResults" class="searchResults"></ul>
+        </div>
+       
+        <div class="searchWrap">
+            <button class="searchInput" id="btnSearch" onclick="searchJourneys()">Search Journeys</button>
         </div>
 
     </div>

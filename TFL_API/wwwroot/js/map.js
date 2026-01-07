@@ -1,13 +1,25 @@
 ﻿document.addEventListener("DOMContentLoaded", init);
-
+const MODE_STYLES = {
+    tube: { color: "#e74c3c", weight: 6 },   // red
+    walking: { color: "#7f8c8d", weight: 4, dashArray: "6,6" },
+    bus: { color: "#2980b9", weight: 5 },
+    dlr: { color: "#1abc9c", weight: 5 },
+    overground: { color: "#e67e22", weight: 5 },
+    "national-rail": { color: "#2c3e50", weight: 5 },
+    default: { color: "#555", weight: 5 }
+}
 const state = {
     map: null,
+    lastItinerary: null,
+    routeLayers: [],
     cardEl: null,
     markersByNaptan: new Map(),
     peakChart: null,
     quietChart: null,
     activeNaptan: null,
-    bounds: L.latLngBounds([51.20, -0.65], [51.80, 0.45])
+    bounds: L.latLngBounds([51.20, -0.65], [51.80, 0.45]),
+    selectedFrom: null,
+    selectedTo: null,
 };
 
 function init()
@@ -47,11 +59,24 @@ function addBaseLayers(map) {
 /* ------------------- UI Logic ------------------ */
 
 function wireGlobalUI() {
-    const searchInput = document.getElementById("searchInput");
-    searchInput.addEventListener("input", (e) => searchStations(e.target.value));
+    const fromInput = document.getElementById("fromInput");
+    const toInput = document.getElementById("toInput");
+    const fromResults = document.getElementById("fromResults");
+    const toResults = document.getElementById("toResults");
+
+    fromInput.addEventListener("input", (e) => searchStations(e.target.value, fromResults, (s) => {
+        state.selectedFrom = s;
+        fromInput.value = s.name;
+        fromResults.innerHTML = "";
+    }));
+    toInput.addEventListener("input", (e) => searchStations(e.target.value, toResults, (s) => {
+        state.selectedTo = s;
+        toInput.value = s.name;
+        toResults.innerHTML = "";
+    }));
 }
 
-/* ------------------- markers ------------------ */
+/* ------------------- Markers ------------------ */
 async function loadStations() {
     const res = await fetch(`/api/train/crowding/tube-stations`);
     if (!res.ok)
@@ -83,6 +108,44 @@ async function loadStations() {
 
 }
 
+function clearRoute() {
+    (state.routeLayers ?? []).forEach(l => state.map.removeLayer(l));
+    state.routeLayers = [];
+}
+
+function drawJourneyOnMap(journey) {
+    clearRoute();
+    const legs = journey?.legs ?? [];
+    const allLatLngs = [];
+
+    for (const leg of legs) {
+        const coords = parseLineString(leg?.path?.lineString);
+        if (coords.length) {
+            const modeId = leg?.mode?.id ?? "default";
+            const style = MODE_STYLES[modeId] ?? MODE_STYLES.default;
+            allLatLngs.push(...coords);
+            const poly = L.polyline(coords, {
+                ...style,
+                opacity: 0.9
+            }).addTo(state.map);
+
+            poly.on("click", (e) => {
+                e.originalEvent?.stopPropagation();
+                clearRoute();
+            });
+            poly.bindTooltip(
+                `${modeId.replace("-", " ")} — click to clear`,
+                { sticky: true }
+            );
+
+            state.routeLayers.push(poly);
+        }
+    }
+    if (allLatLngs.length) {
+        const bounds = L.latLngBounds(allLatLngs);
+        state.map.fitBounds(bounds, { padding: [30, 30] });
+    }
+}
 /* ------------------- Station Interaction ------------------ */
 
 async function onStationClick(station) {
@@ -123,6 +186,40 @@ function showCard({ name, pct, timeLocal, naptan }) {
     renderQuietChart(naptan);
 
 }
+function showJourneyCard(station1, station2, itineraryResponse) {
+    state.lastItinerary = itineraryResponse;
+    state.cardEl.innerHTML = renderJourneyCard({ station1, station2, itineraryResponse });
+
+    state.cardEl.classList.add("open");
+
+    document.getElementById("closeCardBtn")?.addEventListener("click", () => {
+        clearRoute();
+        hideCard();
+    });
+
+    state.cardEl.querySelectorAll(".journeySelectBtn").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+            const idx = Number(e.currentTarget.dataset.journeyIndex);
+            const journeys = state.lastItinerary?.journeys ?? [];
+            const journey = journeys[idx];
+            drawJourneyOnMap(journey);
+
+            state.cardEl.innerHTML = renderJourneyDetailsCard({ station1, station2, journey });
+
+            document.getElementById("closeCardBtn")?.addEventListener("click", () => {
+                clearRoute();
+                hideCard();
+            });
+
+            document.getElementById("backToJourneysBtn")?.addEventListener("click", () => {
+                showJourneyCard(station1, station2, state.lastItinerary);
+            });
+
+            document.getElementById("clearRouteBtn")?.addEventListener("click", clearRoute);
+        });
+    });
+
+}
 
 function hideCard() {
     state.cardEl.classList.remove("open");
@@ -149,6 +246,113 @@ function crowdColor(pct100) {
     if (pct100 < 40) return "#FFA500";
     if (pct100 < 80) return "#FF2400";
     return "#f44336";
+}
+
+function parseLineString(lineString) {
+    if (!lineString) return [];
+    try {
+        return JSON.parse(lineString);
+    } catch {
+        return [];
+    }
+}
+
+function renderJourneyCard({ station1, station2, itineraryResponse }) {
+    const journeys = itineraryResponse?.journeys ?? [];
+
+    const items = journeys.slice(0, 5).map((j, idx) => {
+        const depart = j.startDateTime ? new Date(j.startDateTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "-";
+        const arrive = j.arrivalDateTime ? new Date(j.arrivalDateTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "-";
+        const duration = j.duration ?? "-";
+
+        const firstLeg = j.legs?.[0];
+        const summary = firstLeg?.instruction?.summary ?? "Journey";
+        const detailed = firstLeg?.instruction?.detailed ?? "";
+
+        return `
+      <li style="margin:8px 0;">
+        <button class="journeySelectBtn" data-journey-index="${idx}" style="width:100%; text-align:left; padding:10px; border:1px solid #eee; border-radius:12px; background:#fff; cursor:pointer;">
+          <div style="font-weight:700;">${depart} → ${arrive} (${duration} min)</div>
+          <div style="font-size:12px; color:#555;">${summary}${detailed ? ` — ${detailed}` : ""}</div>
+        </button>
+      </li>
+    `;
+    }).join("");
+
+    return `
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <div>
+        <div style="font-size:18px; font-weight:700;">${station1} to ${station2}</div>
+        <div style="font-size:12px; color:#555;">Found ${journeys.length} journey option(s)</div>
+      </div>
+      <button id="closeCardBtn" style="border:none; background:transparent; font-size:18px; cursor:pointer;">✕</button>
+    </div>
+
+    <ul style="list-style:none; padding:0; margin-top:12px;">
+      ${journeys.length ? items : `<li style="color:#b00;">No journeys returned (maybe disambiguation or bad IDs).</li>`}
+    </ul>
+  `;
+}
+
+function renderJourneyDetailsCard({ station1, station2, journey }) {
+    const depart = journey?.startDateTime
+        ? new Date(journey.startDateTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+        : "-";
+
+    const arrive = journey?.arrivalDateTime
+        ? new Date(journey.arrivalDateTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+        : "-";
+    const duration = journey?.duration ?? "-";
+
+    const farePence = journey?.fare?.totalCost;
+    const fareText = (typeof farePence === "number")
+        ? `£${(farePence / 100).toFixed(2)}`
+        : "Unknown"
+    const legs = journey?.legs ?? [];
+
+    const legItems = legs.map((leg, idx) => {
+        const mode = leg?.mode?.id ?? "unknown";
+        const summary = leg?.instruction?.summary ?? "Leg";
+        const detailed = leg?.instruction?.detailed ?? "";
+        const legDur = leg?.duration ?? "-";
+
+        const fromName = leg?.departurePoint?.commonName ?? leg?.departurePoint?.name ?? "";
+        const toName = leg?.arrivalPoint?.commonName ?? leg?.arrivalPoint?.name ?? "";
+
+        return `
+      <li style="padding:10px; border:1px solid #eee; border-radius:12px; margin:8px 0;">
+        <div style="display:flex; justify-content:space-between; gap:12px;">
+          <div style="font-weight:700;">${idx + 1}. ${summary}</div>
+          <div style="font-size:12px; color:#555;">${mode} • ${legDur} min</div>
+        </div>
+        ${detailed ? `<div style="font-size:12px; color:#555; margin-top:4px;">${detailed}</div>` : ""}
+        ${(fromName || toName) ? `<div style="font-size:12px; margin-top:6px;"><b>${fromName}</b> → <b>${toName}</b></div>` : ""}
+      </li>
+    `;
+    }).join("");
+
+    return `
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <div>
+        <div style="font-size:18px; font-weight:700;">${station1} to ${station2}</div>
+        <div style="font-size:12px; color:#555;">${depart} → ${arrive} • ${duration} min • Fare: ${fareText}</div>
+      </div>
+      <button id="closeCardBtn" style="border:none; background:transparent; font-size:18px; cursor:pointer;">✕</button>
+    </div>
+
+    <div style="display:flex; gap:8px; margin-top:10px;">
+      <button id="backToJourneysBtn" style="padding:8px 10px; border:1px solid #eee; border-radius:10px; background:#fff; cursor:pointer;">
+        ← Back
+      </button>
+      <button id="clearRouteBtn" style="padding:8px 10px; border:1px solid #eee; border-radius:10px; background:#fff; cursor:pointer;">
+        Clear route
+      </button>
+    </div>
+
+    <ul style="list-style:none; padding:0; margin-top:12px;">
+      ${legItems || `<li>No legs available.</li>`}
+    </ul>
+  `;
 }
 
 function renderCrowdingCard({ name, pct, timeLocal }) {
@@ -296,8 +500,27 @@ async function renderQuietChart(naptan, start = "08:00", end = "20:00") {
 
 /* ------------------- Search ------------------ */
 
-async function searchStations(query){
-    const resultsEl = document.getElementById("searchResults");
+async function searchJourneys() {
+    if (!state.selectedFrom || !state.selectedTo) {
+        console.error("Pick both from and To stations first");
+        return;
+    }
+
+    const from = state.selectedFrom.naptan;
+    const to = state.selectedTo.naptan;
+
+    const response = await fetch(`/api/train/crowding/journeys?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+    if (!response.ok) {
+        console.error("Failed to test station");
+        return;
+    }
+    const data = await response.json();
+    showJourneyCard(state.selectedFrom.name, state.selectedTo.name, data);
+
+    
+}
+
+async function searchStations(query, resultsEl, onPick){
     query = query.trim();
     if (query.length < 2) {
         resultsEl.innerHTML = "";
@@ -309,6 +532,7 @@ async function searchStations(query){
         const li = document.createElement("li");
         li.textContent = s.name;
         li.onclick = () => {
+            onPick?.(s);
             onStationClick(s);
             resultsEl.innerHTML = "";
         };

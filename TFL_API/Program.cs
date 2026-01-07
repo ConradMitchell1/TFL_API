@@ -29,6 +29,7 @@ namespace TFL_API
             builder.Services.AddScoped<IStationService, StationService>();  
             builder.Services.AddHttpClient<ITflSeederService, TflSeederService>();
             builder.Services.AddHttpClient<ICrowdingService, CrowdingService>();
+            builder.Services.AddHttpClient<IJourneyService, JourneyService>();
 
             var app = builder.Build();
 
